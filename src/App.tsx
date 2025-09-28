@@ -278,11 +278,11 @@ const App: React.FC = () => {
             <div className="mt-8 text-center w-full max-w-lg">
                 <p className="text-gray-400 mb-4 text-sm">Or load a sample dataset:</p>
                 <div className="flex flex-col sm:flex-row justify-center gap-4">
-                    <button onClick={() => handleSampleFile('YOUR_URL_TO_Assignment_2_2020-2021_Data_Analytics.xlsx')} disabled={isLoading} className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button onClick={() => handleSampleFile('https://raw.githubusercontent.com/MohitChawla26/dan-assignment2/main/Assigment%202%202020-2021_Data%20Analytics.xlsx')} disabled={isLoading} className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                         <FileText size={18} />
                         Load Analytics Data (2020-23)
                     </button>
-                    <button onClick={() => handleSampleFile('YOUR_URL_TO_DAN_ASSIGNMENT2.xlsx')} disabled={isLoading} className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button onClick={() => handleSampleFile('https://raw.githubusercontent.com/MohitChawla26/dan-assignment2/main/DAN%20ASSIGNMENT2.xlsx')} disabled={isLoading} className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                         <FileText size={18} />
                         Load DAN Data (2023-25)
                     </button>
