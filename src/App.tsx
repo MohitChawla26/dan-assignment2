@@ -13,6 +13,8 @@ import {
   UserCheck,
   Layers,
   Award,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import {
   BarChart,
@@ -473,6 +475,23 @@ const App: React.FC = () => {
     "dashboard" | "progression" | "comparison" | "rankings"
   >("dashboard");
 
+  const [sortConfig, setSortConfig] = useState<{
+    key: keyof StudentData;
+    direction: "ascending" | "descending";
+  } | null>({ key: "averageScore", direction: "descending" }); // Default sort
+
+  const requestSort = (key: keyof StudentData) => {
+    let direction: "ascending" | "descending" = "ascending";
+    if (
+      sortConfig &&
+      sortConfig.key === key &&
+      sortConfig.direction === "ascending"
+    ) {
+      direction = "descending";
+    }
+    setSortConfig({ key, direction });
+  };
+
   const processFile = useCallback(async (file: File) => {
     setIsLoading(true);
     setError(null);
@@ -637,7 +656,6 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // NEW: Function to handle loading sample files from a URL
   const handleSampleFile = useCallback(
     async (url: string) => {
       setIsLoading(true);
@@ -672,6 +690,36 @@ const App: React.FC = () => {
         s.enrollmentNo.includes(searchTerm)
     );
   }, [data, selectedYear, searchTerm]);
+
+  const sortedData = useMemo(() => {
+    let sortableItems = [...filteredData];
+    if (sortConfig !== null) {
+      sortableItems.sort((a, b) => {
+        const aValue = a[sortConfig.key];
+        const bValue = b[sortConfig.key];
+
+        if (typeof aValue === "number" && typeof bValue === "number") {
+          if (aValue < bValue) {
+            return sortConfig.direction === "ascending" ? -1 : 1;
+          }
+          if (aValue > bValue) {
+            return sortConfig.direction === "ascending" ? 1 : -1;
+          }
+        } else {
+          const strA = String(aValue).toLowerCase();
+          const strB = String(bValue).toLowerCase();
+          if (strA < strB) {
+            return sortConfig.direction === "ascending" ? -1 : 1;
+          }
+          if (strA > strB) {
+            return sortConfig.direction === "ascending" ? 1 : -1;
+          }
+        }
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [filteredData, sortConfig]);
 
   const stats = useMemo(() => {
     const yearData = data[selectedYear] || [];
@@ -734,16 +782,13 @@ const App: React.FC = () => {
     };
   }, [data, selectedYear]);
 
-  // --- START: MODIFIED CODE ---
   const handleShowProfile = useCallback(
     (studentFromTable: StudentData) => {
-      // Find the student's complete record from the 'allStudents' state
       const consolidatedStudent = allStudents.find(
         (s) => s.enrollmentNo === studentFromTable.enrollmentNo
       );
 
       if (consolidatedStudent) {
-        // Recalculate the average score based on ALL available semester scores
         const allScores = Object.values(
           consolidatedStudent.semesterScores
         ).filter((s) => s > 0);
@@ -752,29 +797,22 @@ const App: React.FC = () => {
             ? allScores.reduce((a, b) => a + b, 0) / allScores.length
             : 0;
 
-        // Construct a complete profile object to send to the modal
         const completeProfile: StudentData = {
           enrollmentNo: consolidatedStudent.enrollmentNo,
           name: consolidatedStudent.name,
-          status: consolidatedStudent.status, // Use the latest status
-          year: studentFromTable.year, // Keep the year from the table for context
+          status: consolidatedStudent.status,
+          year: studentFromTable.year,
           averageScore: overallAverage,
-          // This is the key change: use the COMBINED semester scores
           semesterScores: consolidatedStudent.semesterScores,
-          // We can use the KT count from the specific year's data for display
           totalKTs: studentFromTable.totalKTs,
         };
-
-        // Set the modal to show this complete profile
         setSelectedStudent(completeProfile);
       } else {
-        // Fallback: if for some reason the consolidated student isn't found, show the original data
         setSelectedStudent(studentFromTable);
       }
     },
     [allStudents]
   );
-  // --- END: MODIFIED CODE ---
 
   const reset = () => {
     setData({});
@@ -784,7 +822,36 @@ const App: React.FC = () => {
     setSearchTerm("");
     setActiveView("dashboard");
     setYearlyStats([]);
+    setSortConfig({ key: "averageScore", direction: "descending" });
   };
+
+  const SortableHeader = ({
+    columnKey,
+    title,
+  }: {
+    columnKey: keyof StudentData;
+    title: string;
+  }) => (
+    <th
+      onClick={() => requestSort(columnKey)}
+      className="py-3 px-4 text-sm font-semibold text-gray-400 cursor-pointer select-none transition-colors hover:text-white group"
+    >
+      <div className="flex items-center gap-2">
+        {title}
+        <span className="flex-shrink-0 w-4">
+          {sortConfig?.key === columnKey ? (
+            sortConfig.direction === "ascending" ? (
+              <ArrowUp size={14} />
+            ) : (
+              <ArrowDown size={14} />
+            )
+          ) : (
+            <ArrowDown size={14} className="opacity-0 group-hover:opacity-30" />
+          )}
+        </span>
+      </div>
+    </th>
+  );
 
   return (
     <div className="bg-gray-900 min-h-screen text-gray-200 p-4 sm:p-6 lg:p-8 font-sans">
@@ -860,7 +927,6 @@ const App: React.FC = () => {
               />
             </div>
 
-            {/* NEW: Sample File Buttons */}
             <div className="mt-8 text-center w-full max-w-lg">
               <p className="text-gray-400 mb-4 text-sm">
                 Or load a sample dataset:
@@ -1096,10 +1162,17 @@ const App: React.FC = () => {
                   </div>
                 </div>
                 <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
-                  <div className="flex flex-col md:flex-row justify-between items-center mb-4">
-                    <h3 className="font-semibold text-white mb-4 md:mb-0">
-                      Student Roster for {selectedYear}
-                    </h3>
+                  {/* --- START: MODIFIED HEADER WITH LEGEND --- */}
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
+                    <div>
+                      <h3 className="font-semibold text-white">
+                        Student Roster for {selectedYear}
+                      </h3>
+                      <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
+                        <Star size={14} className="text-yellow-400 fill-yellow-400 flex-shrink-0" />
+                        <span>Indicates a Top 3 Performer for the year.</span>
+                      </div>
+                    </div>
                     <div className="relative w-full md:w-auto">
                       <Search
                         size={18}
@@ -1114,36 +1187,34 @@ const App: React.FC = () => {
                       />
                     </div>
                   </div>
+                  {/* --- END: MODIFIED HEADER WITH LEGEND --- */}
                   <div className="overflow-x-auto">
                     <table className="w-full text-left">
                       <thead>
                         <tr className="border-b border-gray-700">
-                          <th className="py-3 px-4 text-sm font-semibold text-gray-400">
-                            Enrollment No
-                          </th>
-                          <th className="py-3 px-4 text-sm font-semibold text-gray-400">
-                            Name
-                          </th>
-                          <th className="py-3 px-4 text-sm font-semibold text-gray-400">
-                            Average Score
-                          </th>
-                          <th className="py-3 px-4 text-sm font-semibold text-gray-400">
-                            Status
-                          </th>
-                          <th className="py-3 px-4 text-sm font-semibold text-gray-400">
-                            Total KTs
-                          </th>
+                          <SortableHeader
+                            columnKey="enrollmentNo"
+                            title="Enrollment No"
+                          />
+                          <SortableHeader columnKey="name" title="Name" />
+                          <SortableHeader
+                            columnKey="averageScore"
+                            title="Average Score"
+                          />
+                          <SortableHeader columnKey="status" title="Status" />
+                          <SortableHeader
+                            columnKey="totalKTs"
+                            title="Total KTs"
+                          />
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredData.map((student) => (
-                          // --- START: MODIFIED CODE ---
+                        {sortedData.map((student) => (
                           <tr
                             key={student.enrollmentNo}
                             onClick={() => handleShowProfile(student)}
                             className="border-b border-gray-700 hover:bg-gray-700/50 transition-colors cursor-pointer"
                           >
-                            {/* --- END: MODIFIED CODE --- */}
                             <td className="py-3 px-4 text-gray-400">
                               {student.enrollmentNo}
                             </td>
@@ -1196,11 +1267,9 @@ const App: React.FC = () => {
             {activeView === "comparison" && (
               <YearlyComparisonView yearlyStats={yearlyStats} />
             )}
-            {/* --- START: MODIFIED CODE --- */}
             {activeView === "rankings" && (
               <RankingsView data={data} onStudentClick={handleShowProfile} />
             )}
-            {/* --- END: MODIFIED CODE --- */}
           </>
         )}
       </div>
