@@ -206,7 +206,7 @@ const StudentProgressionView = ({
               className={`p-3 rounded-lg cursor-pointer transition-colors ${
                 selectedStudent?.enrollmentNo === student.enrollmentNo
                   ? "bg-blue-600/50"
-                  : "hover:bg-gray-700/50"
+                  : "hover:bg-blue-500/20"
               }`}
             >
               <p className="font-medium text-white">{student.name}</p>
@@ -361,7 +361,7 @@ const RankingsView = ({
               className={`px-4 py-2 text-sm font-medium rounded-full transition-all ${
                 selectedYear === year
                   ? "bg-blue-600 text-white shadow-lg"
-                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                  : "bg-gray-700 text-gray-300 hover:bg-gray-700"
               }`}
             >
               {year}
@@ -415,7 +415,7 @@ const RankingsView = ({
                 <tr
                   key={student.enrollmentNo}
                   onClick={() => onStudentClick(student)}
-                  className="border-b border-gray-700 hover:bg-gray-700/50 transition-colors cursor-pointer"
+                  className="border-b border-gray-700 hover:bg-blue-500/20 transition-colors cursor-pointer"
                 >
                   <td className="py-3 px-4 font-bold text-lg">
                     {student.rank <= 3
@@ -724,12 +724,20 @@ const App: React.FC = () => {
   const stats = useMemo(() => {
     const yearData = data[selectedYear] || [];
     if (yearData.length === 0) return null;
+
     const totalStudents = yearData.length;
     const passedStudents = yearData.filter(
       (s) =>
         !s.status.toLowerCase().includes("fail") &&
         !s.status.toLowerCase().includes("kt")
     ).length;
+
+    // Data for Pass vs Fail Donut Chart
+    const passFailData = [
+      { name: "Pass", value: passedStudents },
+      { name: "Fail", value: totalStudents - passedStudents },
+    ];
+
     const passRate =
       totalStudents > 0 ? (passedStudents / totalStudents) * 100 : 0;
     const avgKts =
@@ -741,6 +749,12 @@ const App: React.FC = () => {
       acc[status] = (acc[status] || 0) + 1;
       return acc;
     }, {} as { [key: string]: number });
+
+    // Data for Performance by Class Category Bar Chart
+    const classCategoryData = Object.entries(statusDistribution)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+
     const topRankersData = [...yearData]
       .sort((a, b) => b.averageScore - a.averageScore)
       .slice(0, 5)
@@ -779,6 +793,8 @@ const App: React.FC = () => {
       topRankersData,
       topPerformers,
       semesterPerformance,
+      passFailData, // Added for new chart
+      classCategoryData, // Added for new chart
     };
   }, [data, selectedYear]);
 
@@ -939,7 +955,7 @@ const App: React.FC = () => {
                     )
                   }
                   disabled={isLoading}
-                  className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <FileText size={18} />
                   Load Analytics Data (2020-23)
@@ -951,7 +967,7 @@ const App: React.FC = () => {
                     )
                   }
                   disabled={isLoading}
-                  className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <FileText size={18} />
                   Load DAN Data (2023-25)
@@ -1021,7 +1037,7 @@ const App: React.FC = () => {
                       className={`px-4 py-2 text-sm font-medium rounded-full transition-all ${
                         selectedYear === year
                           ? "bg-blue-600 text-white shadow-lg"
-                          : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                          : "bg-gray-700 text-gray-300 hover:bg-gray-700"
                       }`}
                     >
                       {year}
@@ -1161,15 +1177,95 @@ const App: React.FC = () => {
                     </ResponsiveContainer>
                   </div>
                 </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                  <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
+                    <h3 className="font-semibold text-white mb-4">
+                      Pass vs. Fail Rate ({selectedYear})
+                    </h3>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <PieChart>
+                        <Pie
+                          data={stats?.passFailData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={70}
+                          outerRadius={110}
+                          fill="#8884d8"
+                          paddingAngle={5}
+                          dataKey="value"
+                          label={({ name, percent }) =>
+                            `${name} ${(percent * 100).toFixed(0)}%`
+                          }
+                        >
+                          <Cell key="cell-0" fill="#10B981" />{" "}
+                          <Cell key="cell-1" fill="#EF4444" />
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "#1A202C",
+                            border: "1px solid #2D3748",
+                            borderRadius: "0.5rem",
+                          }}
+                        />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
+                    <h3 className="font-semibold text-white mb-4">
+                      Performance by Class Category ({selectedYear})
+                    </h3>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart
+                        data={stats?.classCategoryData}
+                        layout="vertical"
+                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                      >
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          stroke="#4A5568"
+                        />
+                        <XAxis type="number" stroke="#A0AEC0" />
+                        <YAxis
+                          type="category"
+                          dataKey="name"
+                          stroke="#A0AEC0"
+                          width={100}
+                          tick={{ fontSize: 12 }}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "#1A202C",
+                            border: "1px solid #2D3748",
+                            borderRadius: "0.5rem",
+                          }}
+                          labelStyle={{ color: "#fff" }}
+                        />
+                        <Legend />
+                        <Bar dataKey="value" name="No. of Students">
+                          {stats?.classCategoryData?.map((entry, index) => (
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={COLORS[index % COLORS.length]}
+                            />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
                 <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
-                  {/* --- START: MODIFIED HEADER WITH LEGEND --- */}
                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
                     <div>
                       <h3 className="font-semibold text-white">
                         Student Roster for {selectedYear}
                       </h3>
                       <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
-                        <Star size={14} className="text-yellow-400 fill-yellow-400 flex-shrink-0" />
+                        <Star
+                          size={14}
+                          className="text-yellow-400 fill-yellow-400 flex-shrink-0"
+                        />
                         <span>Indicates a Top 3 Performer for the year.</span>
                       </div>
                     </div>
@@ -1187,7 +1283,6 @@ const App: React.FC = () => {
                       />
                     </div>
                   </div>
-                  {/* --- END: MODIFIED HEADER WITH LEGEND --- */}
                   <div className="overflow-x-auto">
                     <table className="w-full text-left">
                       <thead>
@@ -1213,7 +1308,7 @@ const App: React.FC = () => {
                           <tr
                             key={student.enrollmentNo}
                             onClick={() => handleShowProfile(student)}
-                            className="border-b border-gray-700 hover:bg-gray-700/50 transition-colors cursor-pointer"
+                            className="border-b border-gray-700 hover:bg-blue-500/20 transition-colors cursor-pointer"
                           >
                             <td className="py-3 px-4 text-gray-400">
                               {student.enrollmentNo}
